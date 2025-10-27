@@ -43,12 +43,28 @@ struct ThreadContext {
 struct Thread::Impl {
     std::shared_ptr<ThreadContext> context;
     thread_t                       thread;
-    /// @todo Further implement error @b ThreadCompleted
-    bool                           _running = false;
+    bool                           _suspended = false;
+    bool                           _joined    = false;
 
-    /// @todo Break down into: started, running, suspended, completed
+    // Is true even if completed
+    bool started() {
+        return context->started;
+    }
+    
+    bool completed() {
+        return context->completed;
+    }
+
     bool running() {
-        return _running && !context->completed;
+        return started() && !completed() && !_suspended;
+    }
+
+    bool suspended() {
+        return started() && !completed() && _suspended;
+    }
+
+    bool joined() {
+        return _joined;
     }
 
     #ifdef _WIN32
@@ -125,30 +141,39 @@ struct Thread::Impl {
             // Wait until thread started, in case user wants to detach,
             // which could cause an issue wherein context's memory
             // is re-allocated
-            while ( !context->started )
+            while ( !started() )
                 ; 
             /// @todo - Improve the waiting for thread to start loop
-            _running = true;
         }
     
         void suspend() {
             if ( !running() )
-                throw ThreadUserError("Cannot suspend a non-running thread!");
+                if ( !started() )
+                    throw ThreadUserError("Cannot suspend an unstarted thread!");
+                else if ( completed() )
+                    throw ThreadExited("Thread already completed!");
+                else
+                    throw ThreadUserError("Thread already suspended!");
             if ( SuspendThread(thread) == -1 )
                 throw ThreadRuntimeError("Failed to suspend thread!");
-            _running = false;
+            _suspended = true;
         }
 
         void resume() {
-            if ( running() )
-                throw ThreadUserError("Cannot resume a running thread!");
+            if ( !suspended() )
+                if ( !started() )
+                    throw ThreadUserError("Cannot resume an unstarted thread!");
+                else if ( completed() )
+                    throw ThreadExited("Thread already completed!");
+                else
+                    throw ThreadUserError("Thread not suspended!");
             if ( SuspendThread(thread) == -1 )
                 throw ThreadRuntimeError("Failed to resume thread!");
-            _running = true;
+            _suspended = false;
         }
 
-        // Note - this should never be called outside this class
     private:
+        // Note - this should never be called outside this class
         void detach() {
             if ( thread != NULL )
                 CloseHandle(thread);
@@ -156,22 +181,30 @@ struct Thread::Impl {
 
     public:
         void terminate(int exit_code) {
-            if ( !running() )
-                throw ThreadUserError("Cannot terminate a non-running thread!");
+            if ( completed() || !started() )
+                if ( completed() )
+                    throw ThreadExited("Thread already completed!");
+                else
+                    throw ThreadUserError("Cannot terminate an unstarted thread!");
             if ( !TerminateThread(thread, exit_code) )
                 throw ThreadRuntimeError("Failed to terminate thread!");
-            _running = false;
         }
 
         bool try_join(size_t ms) {
-            if ( !running() )
-                throw ThreadUserError("Can't join on a non-running thread!");
+            if ( joined() )
+                throw ThreadUserError("Cannot join more than once!");
+            else if ( !started() )
+                throw ThreadUserError("Cannot join until a thread has started!");
+            else if ( suspended() )
+                resume();
 
             switch ( WaitForSingleObject(thread, ms) ) {
                 case WAIT_OBJECT_0:
+                    _joined = true;
                     return true; // Success
                 
                 case WAIT_TIMEOUT:
+                    _joined = false;
                     return false; // Timeout
 
                 default:
@@ -184,8 +217,8 @@ struct Thread::Impl {
         }
 
         int exit_code() {
-            if ( !context->completed )
-                throw ThreadUserError("Can't get exit code until it's completed!");
+            if ( !joined() )
+                throw ThreadUserError("Cannot retrieve exit code until the thread has joined!");
             
             if ( context->exc )
                 std::rethrow_exception(context->exc);
@@ -258,6 +291,30 @@ void Thread::resume() {
     if ( !pimpl )
         throw ThreadUserError("Cannot resume without a thread!");
     pimpl->resume();
+}
+
+bool Thread::started() const {
+    if ( !pimpl )
+        throw ThreadUserError("No thread!");
+    return pimpl->started();
+}
+
+bool Thread::running() const {
+    if ( !pimpl )
+        throw ThreadUserError("No thread!");
+    return pimpl->running();
+}
+
+bool Thread::suspended() const {
+    if ( !pimpl )
+        throw ThreadUserError("No thread!");
+    return pimpl->suspended();
+}
+
+bool Thread::completed() const {
+    if ( !pimpl )
+        throw ThreadUserError("No thread!");
+    return pimpl->completed();
 }
 
 void Thread::detach() {

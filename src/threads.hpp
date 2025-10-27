@@ -16,13 +16,13 @@
 typedef int (*callback_t)(void* data);
 
 /**
- * @class ThreadError
+ * @class ThreadException
  * @brief This is the base class of all exceptions thrown by @b Thread
  */
-class ThreadError: public std::exception {
+class ThreadException: public std::exception {
     protected:
         std::string msg;
-        explicit ThreadError(const std::string& msg): msg(msg) {}
+        explicit ThreadException(const std::string& msg): msg(msg) {}
     
     public:
         /// @brief Get a message describing the error
@@ -34,18 +34,27 @@ class ThreadError: public std::exception {
  * @class ThreadUserError
  * @brief This means some @b Thread operations were used in incorrect order/combination
  */
-class ThreadUserError: public ThreadError {
+class ThreadUserError: public ThreadException {
     public:
-        explicit ThreadUserError(const std::string& msg): ThreadError("ThreadUserError: " + msg) {}
+        explicit ThreadUserError(const std::string& msg): ThreadException("ThreadUserError: " + msg) {}
 };
 
 /**
  * @class ThreadRuntimeError
  * @brief This means that the library or your system failed to handle a valid operation
  */
-class ThreadRuntimeError: ThreadError {
+class ThreadRuntimeError: ThreadException {
     public:
-        explicit ThreadRuntimeError(const std::string& msg): ThreadError("ThreadRuntimeError: " + msg) {}
+        explicit ThreadRuntimeError(const std::string& msg): ThreadException("ThreadRuntimeError: " + msg) {}
+};
+
+/**
+ * @class ThreadExited
+ * @brief This means that your valid request can't be handled as the trhead already completed
+ */
+class ThreadExited: ThreadException {
+    public:
+        explicit ThreadExited(const std::string& msg): ThreadException("ThreadExited: " + msg) {}
 };
 
 /**
@@ -131,6 +140,18 @@ class Thread {
         /// @brief Resume execution of a suspended thread
         void resume();
 
+        /// @brief Check if this has a thread that has been started
+        bool started() const;
+
+        /// @brief Check if this thread is currently running
+        bool running() const;
+
+        /// @brief Check if this thread is currently suspended
+        bool suspended() const;
+
+        /// @brief Check if this thread is completed
+        bool completed() const;
+
         /// @brief Detach the thread so this class doesn't join on destruction
         void detach();
 
@@ -143,6 +164,8 @@ class Thread {
         void join();
 
         /// @brief Join the running/started thread, with finite blocking
+        /// If the thread is suspended, it will be resumed (and if try_join
+        /// returns `false`, it will not be re-suspended afterwards)
         /// @param ms Milliseconds to block for
         /// @returns `true` if successfully joined
         bool try_join(size_t ms);
