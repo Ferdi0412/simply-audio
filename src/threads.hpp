@@ -50,7 +50,7 @@ class ThreadRuntimeError: ThreadException {
 
 /**
  * @class ThreadExited
- * @brief This means that your valid request can't be handled as the trhead already completed
+ * @brief This means that your valid request can't be handled as the thread already completed
  */
 class ThreadExited: ThreadException {
     public:
