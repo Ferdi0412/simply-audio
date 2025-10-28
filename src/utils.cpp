@@ -1,8 +1,37 @@
+// Helper classes to implement RAII lifetimes for System APIs
+//
+// Currently only implemented for Windows
 #ifndef UTILS_CPP_
 #define UTILS_CPP_
 
 #ifdef _WIN32
-
+// ---------------------------------------------------------------------
+// --- WINDOWS IMPLEMENTATION --- --------------------------------------
+//   EXAMPLE
+// /* === Ensure Windows COM library is initialized for block === */
+// Win32Co             cominit;    // Load & init libraries
+// 
+// WinDeviceEnumerator enumerator;
+// CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL,
+//                  enumerator.uuid(), (void**) &enumerator);
+// 
+// WinDevice device;
+// enumerator->GetDefaultAudioEndpoint(eCapture, eConsole, &device);
+// 
+// WinPropertyStore propstore;
+// device->OpenPropertyStore(STGM_READ, &propstore);
+//
+// /* === Read device's name using WinPropVariant === */
+// std::cout << WinPropVariant::device_name(propstore) << std::endl;
+//
+// WinAudioClient client;
+// device->Activate(client.uuid(), CLSCTX_ALL, nullptr, (void**) &client);
+// 
+// WinWaveFormatEx fmt;
+// client->GetMixFormat(&fmt);
+// std::cout << std::to_string(fmt->nSamplesPerSec) << " Hz" << std::endl;
+// std::cout << std::to_string(fmt->nChannels) << " channels" << std::endl;
+// std::cout << std::to_string(fmt->wBitsPerSample) << " bits" << std::endl;
 #include "utils.hpp"
 
 #include <mutex>
@@ -62,7 +91,6 @@ Win32Co::~Win32Co() {
 //   if (winptr)      - same behaviour as in std::unique_ptr
 // IUDeleter     -> WinPtr Deleter for Windows classes starting with I
 // CoTaskDeleter -> For classes needing CoTaskMemFree
-// - See PROPVARIANT Helper's comment for example usages
 
 // Will work for any classes implementing Window's `IUnknown`
 template <typename T>
@@ -260,32 +288,6 @@ class WinHandle {
 //   a namespace:
 // - The rationale for this was that I found working PROPVARIANT
 //   very verbose, and this was a fun implementation, lol 
-//
-//   EXAMPLE
-// /* === Ensure Windows COM library is initialized for block === */
-// Win32Co             cominit;    // Load & init libraries
-// 
-// WinDeviceEnumerator enumerator;
-// CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL,
-//                  enumerator.uuid(), (void**) &enumerator);
-// 
-// WinDevice device;
-// enumerator->GetDefaultAudioEndpoint(eCapture, eConsole, &device);
-// 
-// WinPropertyStore propstore;
-// device->OpenPropertyStore(STGM_READ, &propstore);
-//
-// /* === Read device's name using WinPropVariant === */
-// std::cout << WinPropVariant::device_name(propstore) << std::endl;
-//
-// WinAudioClient client;
-// device->Activate(client.uuid(), CLSCTX_ALL, nullptr, (void**) &client);
-// 
-// WinWaveFormatEx fmt;
-// client->GetMixFormat(&fmt);
-// std::cout << std::to_string(fmt->nSamplesPerSec) << " Hz" << std::endl;
-// std::cout << std::to_string(fmt->nChannels) << " channels" << std::endl;
-// std::cout << std::to_string(fmt->wBitsPerSample) << " bits" << std::endl;
 class WinPropVariant {
     private:
         PROPVARIANT var;
