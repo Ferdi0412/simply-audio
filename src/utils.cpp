@@ -67,7 +67,7 @@ size_t Win32Co::count = 0;
 Win32Co::Win32Co() {
     std::lock_guard<std::mutex> lock(m);
     if ( count == 0 )
-        CoInitialize(NULL);
+        CoInitializeEx(NULL, COINIT_MULTITHREADED);
     count ++;
 }
 
