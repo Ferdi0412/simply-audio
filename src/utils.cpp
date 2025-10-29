@@ -218,7 +218,7 @@ class WinHandle {
     private:
         HANDLE handle = NULL;
 
-        bool truthy() {
+        bool truthy() const {
             return handle != NULL && handle != INVALID_HANDLE_VALUE;
         }
 

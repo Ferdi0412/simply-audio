@@ -24,8 +24,8 @@ struct ThreadContext {
     void*      data;
 
     // These will only be written to from inside the thread
-    std::atomic<bool> started   = false;
-    std::atomic<bool> completed = false;
+    std::atomic<bool> started{false};
+    std::atomic<bool> completed{false};
 
     // These are only read after completed is completed
     std::exception_ptr exc       = nullptr;
