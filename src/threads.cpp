@@ -128,6 +128,10 @@ struct Thread::Impl {
                 case HIGHEST:
                     nPriority = THREAD_PRIORITY_HIGHEST;
                     break;
+
+                case REAL_TIME:
+                    nPriority = THREAD_PRIORITY_TIME_CRITICAL;
+                    break;
             };
             if ( !SetThreadPriority(thread, nPriority) )
                 throw ThreadRuntimeError("Failed to set priority...");
